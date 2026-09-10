@@ -4,7 +4,7 @@ A high-performance WebGL traffic simulation built with **Three.js** demonstratin
 
 ---
 
-## ?? Key Features & Demonstrable Scenarios
+##  Key Features & Demonstrable Scenarios
 
 1. **Normal Traffic Flow**: Balanced vehicle count, smooth multi-lane path following, default traffic light timing cycles.
 2. **Heavy Traffic**: High vehicle spawn density with realistic queue buildup at red lights.
@@ -27,7 +27,7 @@ A high-performance WebGL traffic simulation built with **Three.js** demonstratin
 
 ---
 
-## ?? Computer Graphics Concepts Implemented
+##  Computer Graphics Concepts Implemented
 
 | CG Concept | Implementation Details |
 |---|---|
@@ -44,7 +44,7 @@ A high-performance WebGL traffic simulation built with **Three.js** demonstratin
 
 ---
 
-## ?? Project Architecture
+##  Project Architecture
 
 ```
 traffic-3d-sim/
@@ -82,7 +82,7 @@ traffic-3d-sim/
 
 ---
 
-## ?? How to Run the Project
+##  How to Run the Project
 
 ### Prerequisites
 - Node.js (v18+) and npm installed.
@@ -108,7 +108,7 @@ npm run preview
 
 ---
 
-## ??? Controls Guide
+##  Controls Guide
 
 - **Orbit Camera**: Left-Click Drag to Rotate, Right-Click Drag to Pan, Scroll Wheel to Zoom.
 - **Top-Down View**: Click the Top-Down button in the bottom dock for bird's-eye traffic view.
