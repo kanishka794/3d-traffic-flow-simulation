@@ -1,0 +1,18 @@
+{
+  "name": "traffic-3d-sim",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --port 3000 --host",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "three": "^0.160.0",
+    "lucide": "^0.344.0"
+  },
+  "devDependencies": {
+    "vite": "^5.1.4"
+  }
+}

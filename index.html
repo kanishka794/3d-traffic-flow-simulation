@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3D Traffic Flow & Intelligent Intersection Simulation</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+  <!-- 3D Canvas Mount -->
+  <div id="canvas-container"></div>
+
+  <!-- Top Navigation & Scenario Bar -->
+  <header id="top-bar" class="glass-panel">
+    <div class="brand">
+      <div class="logo-pulse"></div>
+      <div>
+        <h1 class="app-title">TRAFFIC 3D <span class="badge-tag">WebGL</span></h1>
+        <p class="app-subtitle">Intelligent Intersection & Flow Simulation</p>
+      </div>
+    </div>
+
+    <!-- Scenarios Quick-Bar -->
+    <div class="scenario-bar">
+      <span class="scenario-label">Scenarios:</span>
+      <button class="scenario-btn active" data-scenario="normal" id="btn-scenario-normal" title="Smooth balanced flow with default timings">
+        <span class="btn-dot green"></span> Normal
+      </button>
+      <button class="scenario-btn" data-scenario="heavy" id="btn-scenario-heavy" title="High volume traffic with moderate queueing">
+        <span class="btn-dot orange"></span> Heavy
+      </button>
+      <button class="scenario-btn" data-scenario="jam" id="btn-scenario-jam" title="Capacity bottleneck with vehicle spillback">
+        <span class="btn-dot red"></span> Traffic Jam
+      </button>
+      <button class="scenario-btn emergency" data-scenario="emergency" id="btn-scenario-emergency" title="Spawns ambulance with siren audio, lights and green corridor preemption">
+        <span class="btn-dot red-strobe"></span> 🚨 Emergency Preemption
+      </button>
+      <div class="emergency-direction-group" id="emergency-dir-group" style="display: flex; gap: 4px; align-items: center; padding-left: 4px;">
+        <span class="scenario-label" style="font-size: 0.68rem; color: #fca5a5;">🚨 Ambulance Dir:</span>
+        <button class="amb-dir-btn active" data-dir="N" id="btn-amb-n" title="Dispatch Ambulance from North approach">North (N)</button>
+        <button class="amb-dir-btn" data-dir="S" id="btn-amb-s" title="Dispatch Ambulance from South approach">South (S)</button>
+        <button class="amb-dir-btn" data-dir="E" id="btn-amb-e" title="Dispatch Ambulance from East approach">East (E)</button>
+        <button class="amb-dir-btn" data-dir="W" id="btn-amb-w" title="Dispatch Ambulance from West approach">West (W)</button>
+      </div>
+      <button class="scenario-btn adaptive" data-scenario="adaptive" id="btn-scenario-adaptive" title="Dynamic AI signal timings responding to queue lengths">
+        <span class="btn-dot cyan"></span> ⚡ Adaptive Signal
+      </button>
+    </div>
+
+    <!-- Quick Utilities -->
+    <div class="header-actions">
+      <button id="btn-day-night" class="icon-btn" title="Toggle Day / Night Lighting">
+        <span id="day-night-icon">☀️</span>
+      </button>
+      <button id="btn-weather" class="icon-btn" title="Toggle Weather / Rain">
+        <span id="weather-icon">🌧️</span>
+      </button>
+      <button id="btn-sound" class="icon-btn" title="Toggle Synthesized Audio / Siren">
+        <span id="sound-icon">🔊</span>
+      </button>
+      <button id="btn-about" class="action-btn" title="Open Project Introduction">
+        <span>ⓘ About</span>
+      </button>
+      <button id="btn-cg-guide" class="action-btn accent" title="Open Computer Graphics Concepts Inspector">
+        <span>🎓 CG Concepts</span>
+      </button>
+      <button id="btn-reset" class="icon-btn danger" title="Reset Simulation">
+        <span>🔄</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Emergency High-Visibility Alert Banner -->
+  <div id="emergency-banner" class="emergency-banner hidden">
+    <span class="emergency-banner-icon">🚨</span>
+    <span id="emergency-banner-text">EMERGENCY AMBULANCE PREEMPTION — EXCLUSIVE GREEN CORRIDOR GRANTED</span>
+  </div>
+
+  <!-- Left Glassmorphism Control & Telemetry Panel -->
+  <aside id="sidebar-panel" class="glass-panel">
+    <div class="sidebar-header">
+      <h2>Simulation Control HUD</h2>
+      <button id="btn-toggle-sidebar" class="sidebar-collapse-btn" title="Minimize Sidebar">◀</button>
+    </div>
+
+    <div class="sidebar-content">
+      <!-- Live Telemetry Section -->
+      <section class="hud-section">
+        <div class="section-title">
+          <span>Live Telemetry</span>
+          <span id="fps-counter" class="fps-badge">60 FPS</span>
+        </div>
+
+        <div class="telemetry-grid">
+          <div class="telemetry-card">
+            <span class="telemetry-label">Active Vehicles</span>
+            <span class="telemetry-value" id="stat-vehicle-count">0</span>
+          </div>
+          <div class="telemetry-card">
+            <span class="telemetry-label">Avg Velocity</span>
+            <span class="telemetry-value" id="stat-avg-speed">0 <small>km/h</small></span>
+          </div>
+          <div class="telemetry-card">
+            <span class="telemetry-label">Flow Efficiency</span>
+            <span class="telemetry-value text-green" id="stat-flow-efficiency">94%</span>
+          </div>
+          <div class="telemetry-card">
+            <span class="telemetry-label">Signal Mode</span>
+            <span class="telemetry-value text-cyan" id="stat-signal-mode">Fixed</span>
+          </div>
+        </div>
+
+        <!-- Directional Queues & Signal State -->
+        <div class="signal-hud-card">
+          <div class="signal-hud-header">
+            <span class="signal-phase-badge" id="signal-phase-badge">NORTH-SOUTH GREEN</span>
+            <span class="signal-timer-text" id="signal-timer-text">12s</span>
+          </div>
+          <div class="signal-progress-track">
+            <div class="signal-progress-bar" id="signal-progress-bar" style="width: 60%"></div>
+          </div>
+          <div class="queue-mini-meters">
+            <div class="queue-item">
+              <span>North: <b id="queue-val-north">0</b></span>
+              <div class="meter-bar"><div id="meter-north" class="meter-fill" style="width: 0%"></div></div>
+            </div>
+            <div class="queue-item">
+              <span>South: <b id="queue-val-south">0</b></span>
+              <div class="meter-bar"><div id="meter-south" class="meter-fill" style="width: 0%"></div></div>
+            </div>
+            <div class="queue-item">
+              <span>East: <b id="queue-val-east">0</b></span>
+              <div class="meter-bar"><div id="meter-east" class="meter-fill" style="width: 0%"></div></div>
+            </div>
+            <div class="queue-item">
+              <span>West: <b id="queue-val-west">0</b></span>
+              <div class="meter-bar"><div id="meter-west" class="meter-fill" style="width: 0%"></div></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Traffic Parameters Section -->
+      <section class="hud-section">
+        <div class="section-title">Traffic Parameters</div>
+
+        <!-- Traffic Mode -->
+        <div class="control-group">
+          <label>Traffic Mode</label>
+          <div class="preset-pill-group">
+            <button class="preset-pill mode-pill active" data-mode="normal">Normal</button>
+            <button class="preset-pill mode-pill" data-mode="heavy">Heavy</button>
+            <button class="preset-pill mode-pill" data-mode="jam">Traffic Jam</button>
+          </div>
+        </div>
+
+        <!-- Active Vehicles Slider: directly controls how many vehicles are
+             kept on the road at once, ranged per Traffic Mode
+             (Normal 5-10, Heavy 15-20, Traffic Jam 20-30). -->
+        <div class="control-group">
+          <div class="slider-header">
+            <label for="slider-active-vehicles">Active Vehicles</label>
+            <span id="val-active-vehicles" class="slider-val">8 vehicles</span>
+          </div>
+          <input type="range" id="slider-active-vehicles" min="5" max="10" value="8" step="1" />
+          <div class="slider-hint" id="active-vehicles-range-hint">5&ndash;10 vehicles</div>
+        </div>
+
+        <!-- Spawn Rate Slider -->
+        <div class="control-group">
+          <div class="slider-header">
+            <label for="slider-spawn-rate">Spawn Rate</label>
+            <span id="val-spawn-rate" class="slider-val">28 veh/min</span>
+          </div>
+          <input type="range" id="slider-spawn-rate" min="5" max="90" value="28" step="1" />
+        </div>
+
+        <!-- Speed Multiplier Slider -->
+        <div class="control-group">
+          <div class="slider-header">
+            <label for="slider-speed-mult">Vehicle Speed Multiplier</label>
+            <span id="val-speed-mult" class="slider-val">1.0x</span>
+          </div>
+          <input type="range" id="slider-speed-mult" min="0.2" max="2.5" value="1.0" step="0.1" />
+        </div>
+
+        <!-- Lane Count Configurator -->
+        <div class="control-group">
+          <div class="slider-header">
+            <label for="select-lanes">Lanes Per Direction</label>
+            <span id="val-lanes" class="slider-val">2 Lanes</span>
+          </div>
+          <div class="preset-pill-group">
+            <button class="lane-pill" data-lanes="1">1 Lane</button>
+            <button class="lane-pill active" data-lanes="2">2 Lanes (Standard)</button>
+            <button class="lane-pill" data-lanes="3">3 Lanes (Avenue)</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Traffic Light Timing Section -->
+      <section class="hud-section">
+        <div class="section-title">Signal Optimization & Timers</div>
+
+        <div class="control-group">
+          <label>Adaptive AI Timing Mode</label>
+          <div class="toggle-row">
+            <span>Dynamic Queue Optimization</span>
+            <label class="switch">
+              <input type="checkbox" id="toggle-adaptive-signal" />
+              <span class="slider-round"></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="control-group">
+          <div class="slider-header">
+            <label for="slider-ns-green">North-South Green Duration</label>
+            <span id="val-ns-green" class="slider-val">12s</span>
+          </div>
+          <input type="range" id="slider-ns-green" min="4" max="30" value="12" step="1" />
+        </div>
+
+        <div class="control-group">
+          <div class="slider-header">
+            <label for="slider-ew-green">East-West Green Duration</label>
+            <span id="val-ew-green" class="slider-val">12s</span>
+          </div>
+          <input type="range" id="slider-ew-green" min="4" max="30" value="12" step="1" />
+        </div>
+
+        <div class="control-group">
+          <div class="slider-header">
+            <label for="slider-yellow-dur">Yellow Duration</label>
+            <span id="val-yellow-dur" class="slider-val">3s</span>
+          </div>
+          <input type="range" id="slider-yellow-dur" min="2" max="6" value="3" step="1" />
+        </div>
+
+        <div class="manual-signal-controls">
+          <span class="manual-signal-label">Manual Signal Control</span>
+          <div class="manual-signal-buttons">
+            <button id="btn-force-ns-green" class="hud-btn outline">NS Green</button>
+            <button id="btn-force-ew-green" class="hud-btn outline">EW Green</button>
+            <button id="btn-force-yellow" class="hud-btn outline">Yellow</button>
+            <button id="btn-force-all-red" class="hud-btn outline">All Red</button>
+          </div>
+          <button id="btn-force-phase" class="hud-btn outline">⚡ Next Phase</button>
+        </div>
+      </section>
+
+      <!-- Pedestrians & Environment -->
+      <section class="hud-section">
+        <div class="section-title">Pedestrians & Graphics Overlays</div>
+
+        <div class="control-group">
+          <div class="toggle-row">
+            <span>Pedestrian Crossing Activity</span>
+            <label class="switch">
+              <input type="checkbox" id="toggle-pedestrians" checked />
+              <span class="slider-round"></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="control-group">
+          <div class="toggle-row">
+            <span>Real-time Soft Shadows (PCF)</span>
+            <label class="switch">
+              <input type="checkbox" id="toggle-shadows" checked />
+              <span class="slider-round"></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="control-group">
+          <div class="toggle-row">
+            <span>Spline Path Debug Lines</span>
+            <label class="switch">
+              <input type="checkbox" id="toggle-paths" />
+              <span class="slider-round"></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="control-group">
+          <div class="toggle-row">
+            <span>Bounding Box Colliders (CG Debug)</span>
+            <label class="switch">
+              <input type="checkbox" id="toggle-colliders" />
+              <span class="slider-round"></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="control-group">
+          <div class="toggle-row">
+            <span>Particle Flares & Exhaust</span>
+            <label class="switch">
+              <input type="checkbox" id="toggle-particles" checked />
+              <span class="slider-round"></span>
+            </label>
+          </div>
+        </div>
+      </section>
+    </div>
+  </aside>
+
+  <!-- Bottom Center Camera Dock -->
+  <nav id="camera-dock" class="glass-panel">
+    <div class="dock-title">Camera Perspectives</div>
+    <div class="dock-buttons">
+      <button class="cam-btn active" data-cam="orbit" id="cam-orbit" title="Orbit Controls: Left Drag = Rotate, Right Drag = Pan, Scroll = Zoom">
+        <span class="cam-icon">🌐</span> Orbit
+      </button>
+      <button class="cam-btn" data-cam="topdown" id="cam-topdown" title="Bird's Eye Ortho-Style Overhead View">
+        <span class="cam-icon">🗺️</span> Top-Down
+      </button>
+      <button class="cam-btn" data-cam="chase" id="cam-chase" title="Smooth 3rd Person Follow Camera (Clicks a Car or Ambulance)">
+        <span class="cam-icon">🚘</span> Chase Cam
+      </button>
+      <button class="cam-btn" data-cam="cctv" id="cam-cctv" title="Roadside Traffic Security Camera View">
+        <span class="cam-icon">📹</span> CCTV View
+      </button>
+      <button class="cam-btn" data-cam="freefly" id="cam-freefly" title="Free Drone Camera: WASD + Mouse Look">
+        <span class="cam-icon">🚁</span> Free-Fly
+      </button>
+    </div>
+  </nav>
+
+  <!-- Vehicle Telemetry Card (Hover / Selected Vehicle / Ambulance) -->
+  <div id="vehicle-card" class="glass-panel hidden">
+    <div class="vcard-header">
+      <div class="vcard-title-row">
+        <span id="vcard-badge" class="vtype-badge sedan">SEDAN</span>
+        <span id="vcard-id" class="vcard-id">#CAR-102</span>
+      </div>
+      <button id="vcard-close" class="vcard-close-btn">&times;</button>
+    </div>
+    <div class="vcard-grid">
+      <div class="vcard-stat">
+        <span class="label">Speed</span>
+        <span class="val" id="vcard-speed">32 km/h</span>
+      </div>
+      <div class="vcard-stat">
+        <span class="label">Acceleration</span>
+        <span class="val" id="vcard-accel">+1.2 m/s²</span>
+      </div>
+      <div class="vcard-stat">
+        <span class="label">Lead Distance</span>
+        <span class="val" id="vcard-dist">14.5 m</span>
+      </div>
+      <div class="vcard-stat">
+        <span class="label">Lane Maneuver</span>
+        <span class="val" id="vcard-intent">Straight</span>
+      </div>
+    </div>
+    <div class="vcard-actions">
+      <button id="vcard-btn-chase" class="vcard-btn">🎥 Follow This Vehicle</button>
+    </div>
+  </div>
+
+  <!-- Free-Fly Drone Helper Instructions Overlay -->
+  <div id="freefly-helper" class="glass-panel hidden">
+    <div class="helper-content">
+      <span>🕹️ <b>Free-Fly Mode Active:</b> Use <code>W, A, S, D</code> to move, <code>Q / E</code> for Up/Down, Left-Click Drag to Look. Click Orbit to exit.</span>
+    </div>
+  </div>
+
+  <!-- Computer Graphics Concepts Inspector Modal -->
+  <div id="cg-modal" class="modal-backdrop hidden">
+    <div class="modal-dialog glass-panel">
+      <div class="modal-header">
+        <div class="modal-title-group">
+          <h2>Computer Graphics (CG) Concepts Demonstration</h2>
+          <p>Academic breakdown of core graphics algorithms and systems implemented in this WebGL engine</p>
+        </div>
+        <button id="btn-close-modal" class="modal-close-btn">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="cg-concept-grid">
+          <!-- Concept 1 -->
+          <div class="cg-card">
+            <div class="cg-card-header">
+              <span class="cg-tag">01</span>
+              <h3>Hierarchical 3D Modeling</h3>
+            </div>
+            <p>Compound scene graphs with parent-child matrix hierarchies. Vehicles consist of a Root Chassis -> Body Meshes -> 4 Independent Wheel Assemblies -> Dynamic Emissive Light Lenses.</p>
+            <div class="cg-code-snippet">Chassis.matrixWorld = Parent.matrixWorld * LocalTransform</div>
+          </div>
+
+          <!-- Concept 2 -->
+          <div class="cg-card">
+            <div class="cg-card-header">
+              <span class="cg-tag">02</span>
+              <h3>Parametric Spline Curves</h3>
+            </div>
+            <p>Lane paths are computed using 3D CatmullRomCurve3 and Quadratic Bezier splines. Vehicles sample positions P(t) and calculate forward tangent vectors T(t) = dP/dt to compute pitch/yaw orientation.</p>
+            <div class="cg-code-snippet">R_heading = lookAt(P(t), P(t) + T(t), Up)</div>
+          </div>
+
+          <!-- Concept 3 -->
+          <div class="cg-card">
+            <div class="cg-card-header">
+              <span class="cg-tag">03</span>
+              <h3>IDM Physics & Collision Avoidance</h3>
+            </div>
+            <p>Implements the Intelligent Driver Model (IDM) for realistic acceleration curves, safe following gaps s*(v, delta_v), and smooth deceleration at red light stop lines and crosswalks.</p>
+            <div class="cg-code-snippet">dv/dt = a * [1 - (v/v0)^4 - (s*(v, delta_v)/s)^2]</div>
+          </div>
+
+          <!-- Concept 4 -->
+          <div class="cg-card">
+            <div class="cg-card-header">
+              <span class="cg-tag">04</span>
+              <h3>Procedural Textures & Canvas PBR</h3>
+            </div>
+            <p>All road asphalt, zebra crosswalk stripes, yellow double lines, directional turn arrows, and skyscraper window grids are generated procedurally on HTML5 2D Canvas contexts at runtime with zero external image files.</p>
+            <div class="cg-code-snippet">new THREE.CanvasTexture(renderProceduralRoadCanvas())</div>
+          </div>
+
+          <!-- Concept 5 -->
+          <div class="cg-card">
+            <div class="cg-card-header">
+              <span class="cg-tag">05</span>
+              <h3>Multi-Source Lighting & Soft Shadows</h3>
+            </div>
+            <p>Directional solar light with orthographic shadow camera using PCFSoftShadowMap filtering, ambient fill, point lights for streetlamps with quadratic distance attenuation, and emissive light bloom shaders.</p>
+            <div class="cg-code-snippet">I = I0 / (kc + kl*d + kq*d^2) with PCF kernel</div>
+          </div>
+
+          <!-- Concept 6 -->
+          <div class="cg-card">
+            <div class="cg-card-header">
+              <span class="cg-tag">06</span>
+              <h3>Kinematic & Gait Joint Animation</h3>
+            </div>
+            <p>Wheel angular velocity omega = v / r spins independently around local X axes. Pedestrian humanoids feature procedural trigonometric joint articulation theta(t) = A * sin(omega * t) for swinging limbs.</p>
+            <div class="cg-code-snippet">delta_theta = (v * dt) / r,   theta_limb = A * sin(2*PI*f*t)</div>
+          </div>
+
+          <!-- Concept 7 -->
+          <div class="cg-card">
+            <div class="cg-card-header">
+              <span class="cg-tag">07</span>
+              <h3>Particle FX & Strobe Flares</h3>
+            </div>
+            <p>Emergency ambulance features rotating 3D beacon light cones, synchronized alternating red/blue point sprite strobe flares, and vehicles generate velocity-dependent exhaust smoke particles.</p>
+            <div class="cg-code-snippet">alpha(t) = 1.0 - (t / t_max),  Additive Blending</div>
+          </div>
+
+          <!-- Concept 8 -->
+          <div class="cg-card">
+            <div class="cg-card-header">
+              <span class="cg-tag">08</span>
+              <h3>Camera Projection & Smooth Interpolation</h3>
+            </div>
+            <p>Multiple camera projections (Perspective 60 deg FOV, Ortho-like top-down, dynamic 3rd-person spring damper chase cam). Smooth transitions between camera angles are computed using spherical and linear interpolation (LERP/SLERP).</p>
+            <div class="cg-code-snippet">C_pos(t) = lerp(C0, C1, alpha),  Q(t) = slerp(Q0, Q1, alpha)</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Project Introduction / About Us Landing Screen -->
+  <section id="about-page" aria-label="Project introduction">
+    <div class="about-grid-glow"></div>
+    <div class="about-shell">
+      <div class="about-hero glass-panel">
+        <div class="about-kicker"><span class="about-status-dot"></span> WEBGL · COMPUTER GRAPHICS · TRAFFIC INTELLIGENCE</div>
+        <h2>3D Traffic Flow Simulation</h2>
+        <h3>Intelligent Intersection &amp; Computer Graphics Visualization System</h3>
+        <p class="about-lead">An interactive WebGL-based traffic simulation that models vehicles, traffic lights, pedestrians and emergency vehicles moving through a configurable four-way intersection.</p>
+        <button id="btn-enter-simulation" class="about-enter-btn">ENTER SIMULATION <span>→</span></button>
+        <div class="about-hero-meta">
+          <span>Three.js</span><span>Vite</span><span>Vanilla JavaScript</span><span>Real-time 3D</span>
+        </div>
+      </div>
+
+      <div class="about-section-grid">
+        <article class="about-card glass-panel">
+          <span class="about-card-index">01</span><h4>Project Overview</h4>
+          <p>This project combines 3D computer graphics with vehicle path planning, traffic signal control, intelligent vehicle behaviour, collision avoidance, pedestrian simulation, emergency priority, procedural rendering and real-time visualization.</p>
+        </article>
+        <article class="about-card glass-panel">
+          <span class="about-card-index">02</span><h4>How It Works</h4>
+          <div class="about-flow"><span>Vehicle Spawn</span><b>→</b><span>Lane Selection</span><b>→</b><span>Spline Path</span><b>→</b><span>Signal Check</span><b>→</b><span>Conflict Avoidance</span><b>→</b><span>Intersection</span><b>→</b><span>Exit</span></div>
+          <p>Vehicles are generated dynamically and follow mathematically defined road trajectories. Each vehicle maintains speed, acceleration, path position, direction, maneuver and information about traffic-light and nearby-vehicle constraints.</p>
+        </article>
+      </div>
+
+      <div class="about-section-grid three">
+        <article class="about-card glass-panel"><span class="about-card-index">03</span><h4>Vehicle Types</h4><p><b>Sedan · SUV · Bus · Ambulance</b></p><p>The ambulance adds emergency priority, siren/strobe effects and traffic-signal preemption while still respecting physical collision safety.</p></article>
+        <article class="about-card glass-panel"><span class="about-card-index">04</span><h4>Traffic Scenarios</h4><ul><li><b>Normal:</b> balanced fixed timing</li><li><b>Heavy:</b> longer signal timing profile</li><li><b>Traffic Jam:</b> shorter signal cycles for congestion study</li><li><b>Emergency Preemption:</b> ambulance priority corridor</li><li><b>Adaptive Signal:</b> queue-responsive timing</li></ul><p class="about-note">Normal / Heavy / Traffic Jam set the Active Vehicles range (5&ndash;10 / 15&ndash;20 / 20&ndash;30) and default signal timing; drag the Active Vehicles slider to fine-tune the exact count kept on the road within that mode's range at any time.</p></article>
+        <article class="about-card glass-panel"><span class="about-card-index">05</span><h4>Traffic &amp; Camera Controls</h4><p><b>Traffic:</b> spawn rate, speed multiplier, 1–3 lanes, signal durations, adaptive mode and manual phase control.</p><p><b>Camera:</b> Orbit, Top-Down, Chase Cam, CCTV and Free-Fly (WASD/Q/E).</p></article>
+      </div>
+
+      <div class="about-card glass-panel about-wide-card">
+        <div><span class="about-card-index">06</span><h4>Computer Graphics &amp; Visual Features</h4></div>
+        <div class="about-chip-grid"><span>Hierarchical 3D Modeling</span><span>Catmull-Rom Spline Curves</span><span>Transformations &amp; Heading</span><span>Kinematic Wheel Animation</span><span>Pedestrian Gait Animation</span><span>Intelligent Driver Model</span><span>Procedural Canvas Textures</span><span>Lighting &amp; PCF Shadows</span><span>Particle Systems</span><span>Camera LERP / SLERP</span><span>Day / Night</span><span>Rain &amp; Exhaust FX</span></div>
+      </div>
+
+      <div class="about-section-grid">
+        <article class="about-card glass-panel"><span class="about-card-index">07</span><h4>Getting Started</h4><ol><li>Choose a scenario from the top bar.</li><li>Use the <b>Active Vehicles</b> slider to control how many vehicles are on the road at once.</li><li>Adjust speed and lane count as required.</li><li>Watch signals and queues, or change a signal manually.</li><li>Click a vehicle to inspect it and switch camera modes.</li><li>Enable path lines or bounding boxes when studying the graphics/traffic logic.</li></ol></article>
+        <article class="about-card glass-panel"><span class="about-card-index">08</span><h4>Intelligent Safety</h4><p>Vehicles on the same lane continue using IDM for safe following, acceleration and braking. At the intersection, the system also checks crossing spline trajectories, reserves shared conflict regions and uses predicted arrival times so only genuinely conflicting movements yield.</p><p>Vehicles do not simply stop because another vehicle is nearby, and the ambulance cannot bypass physical collision protection.</p></article>
+      </div>
+
+      <div class="about-footer"><span>Interactive academic / hackathon visualization</span><span>ⓘ Use the About button any time to return here</span></div>
+    </div>
+  </section>
+
+  <!-- Entry Script -->
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
